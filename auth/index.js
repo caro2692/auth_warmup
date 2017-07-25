@@ -4,14 +4,12 @@ const queries = require('../db/queries.js');
 const bcrypt = require('bcrypt');
 
 function validUser(user){
-  console.log(user);
   const validEmail = typeof user.email == 'string' && user.email.trim() != '';
   const validPassword = typeof user.password == 'string' && user.password.trim() != '';
   return validEmail && validPassword;
 }
 
 router.post('/signup', (req, res, next) => {
-console.log(req.body);
   if(validUser(req.body)){
     //check to see if email is unique
     queries
@@ -33,7 +31,7 @@ console.log(req.body);
           .then((hash) => {
             user.password = hash;
             queries
-              .createUser(req.body)
+              .createUser(user)
               .then(user => {
                 res.json(user);
               });
@@ -45,5 +43,34 @@ console.log(req.body);
     next(new Error('Invalid User'));
   }
 });
+
+router.post('/login', (req, res, next) => {
+  if(validUser(req.body)){
+    //check to see if email is unique
+    queries
+      .findUserByEmail(req.body.email)
+      .then(user => {
+        if(user) {
+          //compare passwords
+          bcrypt
+          .compare(req.body.password, user.password)
+          .then((result) => {
+            if(result){
+              res.json(user);
+            }else {
+              next(new Error('Incorrect password'));
+            }
+          });
+          //they were foumnd and login
+        } else {
+          //not found should signup
+          next(new Error('Email not found. Please create an account'));
+        }
+      });
+  } else {
+    next(new Error('Invalid User Credentials'));
+  }
+});
+
 
 module.exports = router;
